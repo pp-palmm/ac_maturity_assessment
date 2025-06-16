@@ -19,6 +19,9 @@ if 'client_info' not in st.session_state:
 if 'choices' not in st.session_state:
     st.session_state.choices = {}
 
+if 'assessment_type' not in st.session_state:
+    st.session_state.assessment_type = None
+
 # Define questions, options and scores
 questions_with_scores = {
     1: {
@@ -176,7 +179,49 @@ def page_client_info():
             else:
                 st.error("กรุณากรอกข้อมูลให้ครบทุกช่อง")
 
-# Page 2: Questions
+# Page 2: Assessment Type Selection
+def page_assessment_selection():
+    st.title("📊 เลือกประเภทการประเมิน")
+    st.markdown("### เลือกการประเมินองค์กรของท่าน")
+    
+    # Add some spacing
+    st.markdown("")
+    st.markdown("")
+    
+    # Create two columns for buttons
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        if st.button(
+            "📈 ประเมินความพร้อมองค์กรด้านยุทธศาสตร์ข้อมูล",
+            use_container_width=True,
+            help="ประเมินความพร้อมด้านยุทธศาสตร์ข้อมูลขององค์กร",
+            type="primary"
+        ):
+            st.session_state.assessment_type = "strategy"
+            st.session_state.page = 3
+            st.rerun()
+    
+    with col2:
+        if st.button(
+            "🏛️ ประเมินระดับความพร้อมธรรมาภิบาลข้อมูล",
+            use_container_width=True,
+            help="ประเมินระดับความพร้อมธรรมาภิบาลข้อมูล",
+            type="secondary"
+        ):
+            # Redirect to external URL using JavaScript
+            js = f"window.open('https://www.jotform.com/build/251632288260052?iak=6553c26b661da8b9792faf1ab086afea-f68803ebbd499c6c', '_blank');"
+            html = f'<script>{js}</script>'
+            st.components.v1.html(html, height=0)
+            st.info("กำลังเปิดแบบประเมินธรรมาภิบาลข้อมูลในหน้าต่างใหม่...")
+    
+    # Add back button
+    st.markdown("---")
+    if st.button("⬅️ กลับ", use_container_width=True):
+        st.session_state.page = 1
+        st.rerun()
+
+# Page 3: Questions
 def page_questions():
     st.title("📊 แบบประเมินการใช้ข้อมูลในองค์กร")
     
@@ -222,25 +267,13 @@ def page_questions():
             # Save all answers
             for q_num in questions_with_scores.keys():
                 st.session_state.choices[f"q{q_num}"] = st.session_state[f"q{q_num}"]
-            st.session_state.page = 3
+            st.session_state.page = 4
             st.rerun()
 
-# Page 3: Results
+# Page 4: Results
 def page_results():
     st.title("✅ สรุปผลการประเมิน")
     st.success("บันทึกข้อมูลเรียบร้อยแล้ว!")
-    
-    # Display client information
-    st.subheader("📋 ข้อมูลผู้กรอกแบบฟอร์ม")
-    col1, col2 = st.columns(2)
-    with col1:
-        st.write(f"**ชื่อองค์กร:** {st.session_state.client_info.get('org_name', '')}")
-        st.write(f"**เบอร์โทรศัพท์:** {st.session_state.client_info.get('phone', '')}")
-    with col2:
-        st.write(f"**ชื่อ-นามสกุล:** {st.session_state.client_info.get('full_name', '')}")
-        st.write(f"**อีเมล:** {st.session_state.client_info.get('email', '')}")
-    
-    st.markdown("---")
     
     # Calculate scores for each group
     group_scores = {}
@@ -265,7 +298,7 @@ def page_results():
     # Calculate overall score
     total_score = sum(group_scores.values()) / len(group_scores) if group_scores else 0
     
-    # Display overall score
+    # Display overall score FIRST
     st.subheader("📈 คะแนนรวม")
     col1, col2, col3 = st.columns(3)
     
@@ -322,79 +355,7 @@ def page_results():
     
     st.markdown("---")
     
-    # Display detailed scores by group
-    st.subheader("📋 รายละเอียดคะแนนแต่ละด้าน")
-    
-    for group_name, question_ids in maturity_groups.items():
-        with st.expander(f"{group_name} - {group_scores[group_name]:.1f}%"):
-            for q_id in question_ids:
-                if q_id in detailed_scores:
-                    detail = detailed_scores[q_id]
-                    st.write(f"**คำถามที่ {q_id}:** {detail['question'][:50]}...")
-                    st.write(f"คำตอบ: {detail['answer']}")
-                    st.write(f"คะแนน: {detail['score']}/100")
-                    st.markdown("---")
-    
-    # Export options
-    st.markdown("---")
-    st.subheader("📥 ส่งออกข้อมูล")
-    
-    # Prepare data for export
-    export_data = []
-    for q_id, detail in detailed_scores.items():
-        export_data.append({
-            "คำถามที่": q_id,
-            "คำถาม": detail["question"],
-            "คำตอบ": detail["answer"],
-            "คะแนน": detail["score"]
-        })
-    
-    # Add group scores
-    for group_name, score in group_scores.items():
-        export_data.append({
-            "คำถามที่": f"กลุ่ม: {group_name}",
-            "คำถาม": "",
-            "คำตอบ": "",
-            "คะแนน": f"{score:.1f}"
-        })
-    
-    export_data.append({
-        "คำถามที่": "คะแนนรวม",
-        "คำถาม": "",
-        "คำตอบ": "",
-        "คะแนน": f"{total_score:.1f}"
-    })
-    
-    df_export = pd.DataFrame(export_data)
-    
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        # Create CSV
-        csv_data = df_export.to_csv(index=False, encoding='utf-8-sig')
-        st.download_button(
-            label="💾 ดาวน์โหลด CSV",
-            data=csv_data,
-            file_name=f"assessment_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
-            mime="text/csv"
-        )
-    
-    with col2:
-        # Print button
-        if st.button("🖨️ พิมพ์", use_container_width=True):
-            st.info("กรุณาใช้ฟังก์ชัน Print ของเบราว์เซอร์ (Ctrl+P หรือ Cmd+P)")
-    
-    with col3:
-        # New assessment button
-        if st.button("📝 ทำแบบประเมินใหม่", use_container_width=True):
-            # Reset session state
-            st.session_state.page = 1
-            st.session_state.client_info = {}
-            st.session_state.choices = {}
-            st.rerun()
-    
-    # Recommendations based on scores
-    st.markdown("---")
+    # Recommendations section
     st.subheader("💡 ข้อเสนอแนะ")
     
     # Find areas that need improvement
@@ -406,6 +367,28 @@ def page_results():
             st.write(f"- {area} (คะแนน: {score:.1f}%)")
     else:
         st.success("องค์กรของท่านมีการบริหารจัดการข้อมูลในระดับดีทุกด้าน!")
+    
+    # Display client information
+    st.markdown("---")
+    st.subheader("📋 ข้อมูลผู้กรอกแบบฟอร์ม")
+    col1, col2 = st.columns(2)
+    with col1:
+        st.write(f"**ชื่อองค์กร:** {st.session_state.client_info.get('org_name', '')}")
+        st.write(f"**เบอร์โทรศัพท์:** {st.session_state.client_info.get('phone', '')}")
+    with col2:
+        st.write(f"**ชื่อ-นามสกุล:** {st.session_state.client_info.get('full_name', '')}")
+        st.write(f"**อีเมล:** {st.session_state.client_info.get('email', '')}")
+    
+    # Export section - only with new assessment button
+    st.markdown("---")
+    st.subheader("📝 ทำแบบประเมิน")
+    
+    if st.button("📝 ทำแบบประเมินใหม่", use_container_width=True, type="primary"):
+        # Reset session state but keep client info
+        st.session_state.page = 2  # Go back to assessment selection page
+        st.session_state.choices = {}
+        st.session_state.assessment_type = None
+        st.rerun()
 
 # Main app logic
 def main():
@@ -426,8 +409,10 @@ def main():
     if st.session_state.page == 1:
         page_client_info()
     elif st.session_state.page == 2:
-        page_questions()
+        page_assessment_selection()
     elif st.session_state.page == 3:
+        page_questions()
+    elif st.session_state.page == 4:
         page_results()
 
 if __name__ == "__main__":
