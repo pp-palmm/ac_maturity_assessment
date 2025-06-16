@@ -161,7 +161,7 @@ def page_client_info():
             phone = st.text_input("เบอร์โทรศัพท์", value=st.session_state.client_info.get('phone', ''))
         
         with col2:
-            full_name = st.text_input("ชื่อ-นามสกุล", value=st.session_state.client_info.get('full_name', ''))
+            full_name = st.text_input("ชื่อ", value=st.session_state.client_info.get('full_name', ''))
             email = st.text_input("อีเมล", value=st.session_state.client_info.get('email', ''))
         
         submitted = st.form_submit_button("Next ➡️", use_container_width=True)
